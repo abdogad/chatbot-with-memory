@@ -46,12 +46,14 @@ class Agent:
         chat_service: ChatService,
         memory_store: MemoryService,
         user_id: str,
-        history: List
+        history: List,
+        exclude_ids: List[str]
     ):
         self.chat_service = chat_service
         self.memory_store = memory_store
         self.user_id = user_id
         self.history = history
+        self.exclude_ids = exclude_ids
         self.graph = self._build_graph()
 
     def _build_graph(self) -> StateGraph:
@@ -154,8 +156,9 @@ class Agent:
     async def _fetch_memory(self, state: AgentState) -> AgentState:
         try:
             for q in state.get("search_queries", []):
-                results = await self.memory_store.search_memories(self.user_id,q)
+                results = await self.memory_store.search_memories(self.user_id,q, exclude_ids=self.exclude_ids)
                 for mem in results:
+                    self.exclude_ids.append(mem["_id"])
                     state["memory_hits"].append(mem["fields"]["chunk_text"])
             return state
         except Exception as e:
@@ -234,8 +237,9 @@ async def run_agent(
         "error_count": 0,
         "last_error": None,
     }
-    history = await memory_store.get_history(user_id)
-    agent = Agent(chat_service, memory_store, user_id, history)
+    print("GETTING HISTORY")
+    history, exclude_ids = await memory_store.get_history(user_id)
+    agent = Agent(chat_service, memory_store, user_id, history, exclude_ids)
     final = await agent.graph.ainvoke(state)
     reply = final["messages"][-1].content if final["messages"] else ""
     return {

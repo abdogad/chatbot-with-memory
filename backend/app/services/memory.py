@@ -41,7 +41,8 @@ class MemoryService:
                     "id": memory_id,
                     "chunk_text": content,
                     "timestamp": datetime.now().timestamp(),
-                    "role": role
+                    "role": role,
+                    "id_for_filter": memory_id
                 }
             ],
             namespace=user_id
@@ -49,9 +50,15 @@ class MemoryService:
         print(f"Memory stored successfully with ID: {memory_id}")
         return memory_id
     
-    async def search_memories(self, user_id: str, query: str, limit: int = 3) -> List[dict]:
+    async def search_memories(self, user_id: str, query: str, limit: int = 5, exclude_ids: List[str] = None) -> List[dict]:
         """Search for relevant memories using semantic search"""
         try:
+            # Build filter based on exclude_ids
+            filter_dict = {}
+            if exclude_ids:
+                filter_dict = {
+                    "id_for_filter": {"$nin": exclude_ids}
+                }
             
             # Query Pinecone
             results = self.index.search(
@@ -59,8 +66,9 @@ class MemoryService:
                 query={
                     "top_k": limit,
                     "inputs": {
-                        "text" : query
-                    }
+                        "text": query
+                    },
+                    "filter": filter_dict
                 }
             )
             
@@ -116,7 +124,7 @@ class MemoryService:
         print(f"Fetched IDs: {ids}")
         ids = [id for id in ids if id is not None]
         if ids == []:
-            return []
+            return [], []
         ids = ids[0]
     
         print(f"IDs: {ids}")
@@ -136,11 +144,13 @@ class MemoryService:
         history.sort(key=lambda x: x['timestamp'], reverse=True)
         history = history[:limit]
         history.reverse()
+        print("HOWOHWO", history)
+        ids = [entry.pop('id') for entry in history]
+        print(ids)
         # remove timestamp and id and rename text to parts also make it a list
         for entry in history:
             entry['parts'] = [entry.pop('text')]
             entry.pop('timestamp')
-            entry.pop('id')
         print(f"History: {history}")
-        return history[:limit]
+        return history[:limit], ids
     
