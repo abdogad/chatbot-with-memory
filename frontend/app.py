@@ -1,10 +1,6 @@
 import streamlit as st
 import requests
 import os
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
 
 # Page config
 st.set_page_config(
@@ -13,9 +9,9 @@ st.set_page_config(
     layout="wide"
 )
 
-# Initialize session state with backend URL from environment
+# Initialize session state with backend URL from secrets
 if 'backend_url' not in st.session_state:
-    st.session_state.backend_url = os.getenv('BACKEND_URL', 'http://localhost:8000')
+    st.session_state.backend_url = st.secrets.get("BACKEND_URL", "http://localhost:8000")
 
 # Custom CSS
 st.markdown("""

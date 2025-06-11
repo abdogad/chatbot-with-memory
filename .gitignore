@@ -87,6 +87,8 @@ coverage.xml
 
 # Streamlit
 .streamlit/
+.streamlit/secrets.toml
+.streamlit/secrets.json
 
 # Pinecone
 pinecone.json

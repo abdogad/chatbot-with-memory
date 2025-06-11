@@ -9,7 +9,8 @@ A full-stack application featuring a chatbot with memory capabilities using Goog
 ├── frontend/          # Streamlit frontend application
 │   ├── app.py        # Main Streamlit application
 │   ├── requirements.txt
-│   └── .env          # Environment variables (not tracked in git)
+│   └── .streamlit/   # Streamlit configuration
+│       └── secrets.toml  # Streamlit secrets (not tracked in git)
 ├── backend/          # FastAPI backend application
 │   ├── app/         # Backend application code
 │   ├── requirements.txt
@@ -55,10 +56,18 @@ A full-stack application featuring a chatbot with memory capabilities using Goog
    pip install -r requirements.txt
    ```
 
-3. Create a `.env` file with:
-   ```
-   BACKEND_URL=http://localhost:8000
-   ```
+3. Configure Streamlit secrets:
+   - For local development, create a `.streamlit/secrets.toml` file:
+     ```toml
+     BACKEND_URL = "http://localhost:8000"
+     ```
+   - For production deployment on Streamlit Cloud:
+     1. Go to your app's dashboard
+     2. Navigate to Settings → Secrets
+     3. Add your secrets in TOML format:
+        ```toml
+        BACKEND_URL = "your_production_backend_url"
+        ```
 
 4. Run the frontend:
    ```bash
@@ -72,7 +81,7 @@ A full-stack application featuring a chatbot with memory capabilities using Goog
 - `PINECONE_API_KEY`: Your Pinecone API key
 - `PINECONE_HOST`: Your Pinecone host URL
 
-### Frontend (.env)
+### Frontend (Streamlit Secrets)
 - `BACKEND_URL`: URL of the backend service (default: http://localhost:8000)
 
 ## Features
@@ -89,4 +98,6 @@ A full-stack application featuring a chatbot with memory capabilities using Goog
 - Backend: FastAPI
 - AI: Google Gemini
 - Vector Database: Pinecone
-- Environment Management: python-dotenv 
+- Environment Management: 
+  - Backend: python-dotenv
+  - Frontend: Streamlit Secrets 
