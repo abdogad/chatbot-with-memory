@@ -9,6 +9,11 @@ st.set_page_config(
     layout="wide"
 )
 
+# Authentication check
+if not st.user.is_logged_in:
+    st.button("Log in with Google", on_click=st.login)
+    st.stop()
+
 # Initialize session state with backend URL from secrets
 if 'backend_url' not in st.session_state:
     st.session_state.backend_url = st.secrets.get("BACKEND_URL", "http://localhost:8000")
@@ -64,8 +69,8 @@ st.markdown("""
 if 'messages' not in st.session_state:
     st.session_state.messages = []
 if 'user_id' not in st.session_state:
-    import uuid
-    st.session_state.user_id = str(uuid.uuid4())
+    # Use the authenticated user's email as the user ID
+    st.session_state.user_id = st.user.email
 if 'use_memory' not in st.session_state:
     st.session_state.use_memory = True
 
@@ -76,6 +81,7 @@ st.caption("This chatbot remembers your previous conversations and can use that 
 # Sidebar
 with st.sidebar:
     st.header("Settings")
+    st.markdown(f"Logged in as: {st.user.email}")
     st.session_state.use_memory = st.toggle("Enable Memory", value=st.session_state.use_memory)
     
     if st.button("Clear Conversation"):
@@ -92,6 +98,9 @@ with st.sidebar:
                 st.error("Failed to clear conversation history")
         except Exception as e:
             st.error(f"Error: {str(e)}")
+    
+    if st.button("Log out"):
+        st.logout()
     
     st.markdown("---")
     st.markdown("### About")
