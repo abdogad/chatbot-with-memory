@@ -1,6 +1,5 @@
 import streamlit as st
 import requests
-import os
 
 # Page config
 st.set_page_config(
@@ -8,6 +7,12 @@ st.set_page_config(
     page_icon="🤖",
     layout="wide"
 )
+
+# --- New: Single-message lock ---
+if 'message_pending' not in st.session_state:
+    st.session_state.message_pending = False
+if 'pending_prompt' not in st.session_state:
+    st.session_state.pending_prompt = None
 
 # Authentication check
 if not st.user.is_logged_in:
@@ -69,7 +74,6 @@ st.markdown("""
 if 'messages' not in st.session_state:
     st.session_state.messages = []
 if 'user_id' not in st.session_state:
-    # Use the authenticated user's email as the user ID
     st.session_state.user_id = st.user.email
 if 'use_memory' not in st.session_state:
     st.session_state.use_memory = True
@@ -86,10 +90,9 @@ with st.sidebar:
     
     if st.button("Clear Conversation"):
         st.session_state.messages = []
-        # Here you would also want to clear the backend memory
         try:
             response = requests.post(
-                f"{st.session_state.get('backend_url', 'http://localhost:8000')}/clear_memories",
+                f"{st.session_state.backend_url}/clear_memories",
                 json={"user_id": st.session_state.user_id}
             )
             if response.status_code == 200:
@@ -118,50 +121,41 @@ for message in st.session_state.messages:
                 for memory in message["relevant_memories"]:
                     st.markdown(f'<div class="memory-badge">{memory}</div>', unsafe_allow_html=True)
 
-# Chat input
-if prompt := st.chat_input("Type your message here..."):
-    # Add user message to chat history
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    
-    # Display user message
-    with st.chat_message("user"):
-        st.markdown(prompt)
-    
-    # Display assistant response
+# New: disable chat input while waiting for a reply
+user_input = st.chat_input("Type your message here...", disabled=st.session_state.message_pending)
+
+# New: queue the prompt and trigger rerun
+if user_input and not st.session_state.message_pending:
+    st.session_state.pending_prompt = user_input
+    st.session_state.messages.append({"role": "user", "content": user_input})
+    st.session_state.message_pending = True
+    st.rerun()
+
+# New: if waiting on a prompt, handle the assistant response
+if st.session_state.message_pending and st.session_state.pending_prompt:
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
-        full_response = ""
-        
         try:
-            # Call backend API
-            backend_url = st.session_state.get('backend_url', 'http://localhost:8000')
             response = requests.post(
-                f"{backend_url}/chat",
+                f"{st.session_state.backend_url}/chat",
                 json={
                     "user_id": st.session_state.user_id,
-                    "message": prompt,
+                    "message": st.session_state.pending_prompt,
                     "use_memory": st.session_state.use_memory
                 }
             )
-            
             if response.status_code == 200:
                 data = response.json()
                 full_response = data["response"]
                 used_memory = data.get("used_memory", False)
                 relevant_memories = data.get("relevant_memories", [])
-                
-                # Display response
                 message_placeholder.markdown(full_response)
-                
-                # Add assistant response to chat history
                 st.session_state.messages.append({
                     "role": "assistant",
                     "content": full_response,
                     "used_memory": used_memory,
                     "relevant_memories": relevant_memories
                 })
-                
-                # Show memory indicator if memory was used
                 if used_memory and relevant_memories:
                     with st.expander("🔍 Used memory context"):
                         for memory in relevant_memories:
@@ -174,7 +168,6 @@ if prompt := st.chat_input("Type your message here..."):
                     "content": error_msg,
                     "error": True
                 })
-                
         except Exception as e:
             error_msg = f"Error connecting to the server: {str(e)}"
             message_placeholder.markdown(error_msg)
@@ -183,3 +176,7 @@ if prompt := st.chat_input("Type your message here..."):
                 "content": error_msg,
                 "error": True
             })
+    # Reset pending state and rerun
+    st.session_state.pending_prompt = None
+    st.session_state.message_pending = False
+    st.rerun()
